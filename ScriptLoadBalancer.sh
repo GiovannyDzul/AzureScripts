@@ -8,43 +8,45 @@
 
 # En resumen, se crean 2 VM con servidor web nginx y un balanceo de cargas para que se repartan las solicitudes. 
 
+Num=GroupCoresa$RANDOM
+
 # 1. Crear un grupo de recursos donde se encontrarán las VM
 
-az group create --name groupLBCoresa --location eastus
+az group create --name $Num --location eastus
 
 # 2. Crear una dirección IP Publica
 
-az network public-ip create --resource-group groupLBCoresa --name publicIPCoresa
+az network public-ip create --resource-group $Num --name publicIPCoresa
 
 # 3. Crear un balanceador de cargas
 
-az network lb create --resource-group groupLBCoresa --name loadBCoresa --frontend-ip-name frontEndCoresa --backend-pool-name backEndCoresa --public-ip-address publicIPCoresa
+az network lb create --resource-group $Num --name loadBCoresa --frontend-ip-name frontEndCoresa --backend-pool-name backEndCoresa --public-ip-address publicIPCoresa
 
 # 4. Crear una sonda para revisar el estado del balanceador de cargas
 
-az network lb probe create --resource-group groupLBCoresa --lb-name loadBCoresa --name healthCoresa --protocol tcp --port 80
+az network lb probe create --resource-group $Num --lb-name loadBCoresa --name healthCoresa --protocol tcp --port 80
 
 # 5. Crear una regla de puertos en red para permitir el acceso al puerto 80 (Puerto utilizado por el servidor web Nginx)
 
-az network lb rule create --resource-group groupLBCoresa --lb-name loadBCoresa --name ruleLBPort80 --protocol tcp --frontend-port 80 --backend-port 80 --frontend-ip-name frontEndCoresa --backend-pool-name backEndCoresa --probe-name healthCoresa
+az network lb rule create --resource-group $Num --lb-name loadBCoresa --name ruleLBPort80 --protocol tcp --frontend-port 80 --backend-port 80 --frontend-ip-name frontEndCoresa --backend-pool-name backEndCoresa --probe-name healthCoresa
 
 # 6. Crear una red virtual
 
-az network vnet create --resource-group groupLBCoresa --name vNetCoresa --subnet-name vSubnetCoresa
+az network vnet create --resource-group $Num --name vNetCoresa --subnet-name vSubnetCoresa
 
 # 7. Crear un grupo de seguridad de red
 
-az network nsg create --resource-group groupLBCoresa --name netSecGCoresa
+az network nsg create --resource-group $Num --name netSecGCoresa
 
 # 8. Crear una regla en el grupo de seguridad de red
 
-az network nsg rule create --resource-group groupLBCoresa --nsg-name netSecGCoresa --name ruleSGPort80 --priority 1001 --protocol tcp --destination-port-range 80
+az network nsg rule create --resource-group $Num --nsg-name netSecGCoresa --name ruleSGPort80 --priority 1001 --protocol tcp --destination-port-range 80
 
 # 9. Con un ciclo for, se crea 3 interfaces de red
 
 for i in `seq 1 2`; do
     az network nic create \
-        --resource-group groupLBCoresa \
+        --resource-group $Num \
         --name vNet$i \
         --vnet-name vNetCoresa \
         --subnet vSubnetCoresa \
@@ -55,13 +57,13 @@ done
 
 # 10. Crear un conjunto de disponibilidad
 
-az vm availability-set create --resource-group groupLBCoresa --name avalSetCoresa
+az vm availability-set create --resource-group $Num --name avalSetCoresa
 
 # 11. Con un ciclo for, se crea 3 VM 
 
 for i in `seq 1 2`; do
     az vm create \
-        --resource-group groupLBCoresa \
+        --resource-group $Num \
         --name myVM$i \
         --availability-set avalSetCoresa \
         --nics vNet$i \
@@ -76,4 +78,4 @@ done
 
 # 12. Obtener la IP Publica para abrir desde el navegador
 
-az network public-ip show --resource-group groupLBCoresa --name publicIPCoresa --query [ipAddress] --output tsv
+az network public-ip show --resource-group $Num --name publicIPCoresa --query [ipAddress] --output tsv
